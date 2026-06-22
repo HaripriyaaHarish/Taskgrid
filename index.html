@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<title>Employee Dashboard</title>
+
+<link rel="stylesheet" href="style.css">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>Employee Dashboard</h1>
+
+
+<div class="file-upload">
+  <input type="file" id="excelFile" accept=".xlsx" />
+  <label for="excelFile" class="custom-file-btn">📁 Choose File</label>
+
+  <button id="uploadBtn">Upload Excel</button>
+</div>
+<div class="dashboard-cards">
+
+<div class="card">
+
+<h2 id="employeeCount">0</h2>
+
+<p>👤 Employees</p>
+
+</div>
+
+<div class="card">
+
+<h2 id="taskCount">0</h2>
+
+<p>📋 Tasks</p>
+
+</div>
+
+<div class="card">
+
+<h2 id="departmentCount">0</h2>
+
+<p>🏢 Departments</p>
+
+</div>
+
+<div class="card">
+
+<h2 id="delayCount">0</h2>
+
+<p>⚠️ Delayed</p>
+
+</div>
+
+</div>
+
+<div class="filter-container">
+
+<label>Department:</label>
+
+<select id="departmentFilter">
+
+<option value="all">
+
+All Departments
+
+</option>
+
+</select>
+
+</div>
+
+<h2>📊 Department-wise Tasks</h2>
+
+<div id="departmentChart"></div>
+
+<div id="output"></div>
+
+</div>
+
+<script src="script.js"></script>
+
+</body>
+
+</html>
