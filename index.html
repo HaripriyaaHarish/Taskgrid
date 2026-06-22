@@ -24,6 +24,10 @@
   <label for="excelFile" class="custom-file-btn">📁 Choose File</label>
 
   <button id="uploadBtn">Upload Excel</button>
+    <button id="clearBtn">
+    🗑 Clear Data
+  </button>
+
 </div>
 <div class="dashboard-cards">
 
@@ -66,6 +70,11 @@
 <label>Department:</label>
 
 <select id="departmentFilter">
+    <h2>📅 Gantt Chart</h2>
+
+<div id="ganttHeader"></div>
+
+<div id="ganttChart"></div>
 
 <option value="all">
 
@@ -77,9 +86,9 @@ All Departments
 
 </div>
 
-<h2>📊 Department-wise Tasks</h2>
 
-<div id="departmentChart"></div>
+
+
 
 <div id="output"></div>
 

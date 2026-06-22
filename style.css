@@ -498,3 +498,45 @@ input[type="file"] {
   transform: translateY(-2px);
   background: linear-gradient(135deg, #4338ca, #4f46e5);
 }
+#ganttHeader {
+    display: flex;
+    overflow-x: auto;
+    margin-bottom: 10px;
+}
+
+.gantt-date {
+    min-width: 80px;
+    font-size: 10px;
+    text-align: center;
+    border-right: 1px solid #333;
+    padding: 4px;
+    color: #aaa;
+}
+
+.gantt-row {
+    display: flex;
+    margin-bottom: 10px;
+}
+
+.gantt-label {
+    width: 200px;
+    font-size: 12px;
+}
+
+.gantt-track {
+    position: relative;
+    flex: 1;
+    height: 20px;
+    background: #1f2937;
+    border-radius: 6px;
+}
+
+.gantt-bar {
+    position: absolute;
+    height: 100%;
+    border-radius: 6px;
+}
+
+.gantt-progress {
+    height: 100%;
+}

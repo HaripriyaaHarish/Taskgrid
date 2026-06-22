@@ -1,6 +1,6 @@
 let allData = JSON.parse(localStorage.getItem("allData")) || [];
 
-// ================= UPLOAD EXCEL =================
+
 document.getElementById("uploadBtn").addEventListener("click", uploadExcel);
 
 function uploadExcel() {
@@ -20,7 +20,6 @@ function uploadExcel() {
         let sheet = workbook.Sheets[workbook.SheetNames[0]];
         let jsonData = XLSX.utils.sheet_to_json(sheet);
 
-        // ================= UPSERT LOGIC =================
         jsonData.forEach(newItem => {
 
             let key = (newItem.Employee || newItem.EmployeeID) + "_" + newItem.Task;
@@ -38,23 +37,24 @@ function uploadExcel() {
                 allData.push(newItem);
             }
         });
-
+        console.log(allData);
         localStorage.setItem("allData", JSON.stringify(allData));
 
-        renderTable(allData);
-        updateDashboard(allData);
-        populateDepartments(allData);
+
+allData = JSON.parse(localStorage.getItem("allData")) || [];
+
+refreshUI(allData);
     };
 
     reader.readAsArrayBuffer(file);
 }
 
 
-// ================= FORMAT EXCEL DATE =================
+
 function formatExcelDate(value) {
     if (!value) return "-";
 
-    // already normal date string
+
     if (isNaN(value)) return value;
 
     const date = new Date((value - 25569) * 86400 * 1000);
@@ -63,59 +63,74 @@ function formatExcelDate(value) {
 }
 
 
-// ================= TABLE =================
+
 function renderTable(data) {
     if (!data.length) return;
 
-    let html = `
-    <table>
+    let allDates = [];
+
+   
+    data.forEach(item => {
+        let start = new Date(formatExcelDate(item["Start Date"]));
+        let end = new Date(formatExcelDate(item["End Date"]));
+
+        if (!isNaN(start)) allDates.push(start);
+        if (!isNaN(end)) allDates.push(end);
+    });
+
+    let minDate = new Date(Math.min(...allDates));
+    let maxDate = new Date(Math.max(...allDates));
+
+   
+    let timeline = generateTimeline(minDate, maxDate);
+
+    let html = `<table class="gantt">
         <tr>
             <th>Employee</th>
-            <th>Department</th>
-            <th>Task</th>
-            <th>Start Date</th>
-            <th>End Date</th>
-            <th>Deadline</th>
-            <th>Progress</th>
-            <th>Delay</th>
-        </tr>
-    `;
+            <th>Task</th>`;
 
-    data.forEach(row => {
+    timeline.forEach(date => {
+        html += `<th>
+        ${date.toLocaleDateString("en-GB", {
+            day: "2-digit",
+            month: "short"
+        })}
+    </th>`;
+    });
 
-        const start = formatExcelDate(row["Start Date"]);
-        const end = formatExcelDate(row["End Date"]);
-        const deadline = formatExcelDate(row.Deadline);
+    html += `</tr>`;
 
-        const delay = getDelay(deadline, end);
+  
+    data.forEach(item => {
 
-        html += `
-        <tr>
-            <td>${row.Employee || row.EmployeeID || "-"}</td>
-            <td>${row.Department || "-"}</td>
-            <td>${row.Task || "-"}</td>
+        let start = new Date(formatExcelDate(item["Start Date"]));
+        let end = new Date(formatExcelDate(item["End Date"]));
+        let progress = item.Progress || 0;
 
-            <td>${start}</td>
-            <td>${end}</td>
-            <td>${deadline}</td>
+        html += `<tr>
+            <td>${item.Employee}</td>
+            <td>${item.Task}</td>`;
 
-            <td>
-                <div class="progress-container">
-                    <div class="progress-fill" style="width:${row.Progress || 0}%">
-                        ${row.Progress || 0}%
-                    </div>
-                </div>
-            </td>
+        timeline.forEach(date => {
 
-            <td>
-                ${
-                    delay > 0
-                    ? `<span class="delay">${delay} days</span>`
-                    : `<span class="ontime">On Time</span>`
-                }
-            </td>
-        </tr>
-        `;
+            let cellDate = new Date(date);
+
+            let inRange = cellDate >= start && cellDate <= end;
+
+            let color = "";
+
+            if (inRange) {
+                let progressLimit = Math.floor((progress / 100) * (end - start) / (1000 * 60 * 60 * 24));
+
+                let currentDiff = (cellDate - start) / (1000 * 60 * 60 * 24);
+
+                color = currentDiff <= progressLimit ? "#4ade80" : "#60a5fa";
+            }
+
+            html += `<td style="background:${inRange ? color : "transparent"}"></td>`;
+        });
+
+        html += `</tr>`;
     });
 
     html += "</table>";
@@ -123,8 +138,6 @@ function renderTable(data) {
     document.getElementById("output").innerHTML = html;
 }
 
-
-// ================= DASHBOARD =================
 function updateDashboard(data) {
 
     let employees = new Set();
@@ -133,39 +146,62 @@ function updateDashboard(data) {
 
     data.forEach(item => {
 
-        employees.add(item.Employee || item.EmployeeID);
-        departments.add(item.Department);
+        let employee =
+            item.Employee ||
+            item.EmployeeID ||
+            item["Employee Name"] ||
+            item.employee ||
+            item.Name;
 
-        const end = formatExcelDate(item["End Date"]);
-        const deadline = formatExcelDate(item.Deadline);
+        let department =
+            item.Department ||
+            item.department;
 
-        if (getDelay(deadline, end) > 0) {
+        if (employee) {
+            employees.add(employee);
+        }
+
+        if (department) {
+            departments.add(department);
+        }
+
+        let deadline = formatExcelDate(item.Deadline);
+        let endDate = formatExcelDate(item["End Date"]);
+
+        if (getDelay(deadline, endDate) > 0) {
             delayed++;
         }
     });
 
-    document.getElementById("employeeCount").innerText = employees.size;
-    document.getElementById("taskCount").innerText = data.length;
-    document.getElementById("departmentCount").innerText = departments.size;
-    document.getElementById("delayCount").innerText = delayed;
+    document.getElementById("employeeCount").textContent = employees.size;
+
+    document.getElementById("taskCount").textContent = data.length;
+
+    document.getElementById("departmentCount").textContent = departments.size;
+
+    document.getElementById("delayCount").textContent = delayed;
 }
+document.getElementById("departmentFilter")
+    .addEventListener("change", function () {
+
+        let value = this.value;
+
+        let filtered =
+            value === "all"
+                ? allData
+                : allData.filter(item =>
+                    item.Department === value
+                );
+
+        renderTable(filtered);
+
+        renderGantt(filtered);
+
+        updateDashboard(filtered);
+    });
 
 
-// ================= FILTER =================
-document.getElementById("departmentFilter").addEventListener("change", function () {
-    let value = this.value;
 
-    if (value === "all") {
-        renderTable(allData);
-        return;
-    }
-
-    let filtered = allData.filter(item => item.Department === value);
-    renderTable(filtered);
-});
-
-
-// ================= POPULATE FILTER =================
 function populateDepartments(data) {
 
     let select = document.getElementById("departmentFilter");
@@ -180,7 +216,7 @@ function populateDepartments(data) {
 }
 
 
-// ================= DELAY CALC =================
+
 function getDelay(deadline, endDate) {
 
     if (!deadline || !endDate) return 0;
@@ -194,33 +230,150 @@ function getDelay(deadline, endDate) {
 }
 
 
-// ================= INIT =================
+
 renderTable(allData);
+renderGantt(allData);
 updateDashboard(allData);
 populateDepartments(allData);
 document.getElementById("clearBtn").addEventListener("click", clearAllData);
 
 function clearAllData() {
-    let confirmDelete = confirm("Are you sure you want to delete ALL data?");
+
+    let confirmDelete = confirm(
+        "Are you sure you want to delete all data?"
+    );
 
     if (!confirmDelete) return;
 
-    // Clear storage
     localStorage.removeItem("allData");
 
-    // Reset variable
+
     allData = [];
 
-    // Clear UI
+
     document.getElementById("output").innerHTML = "";
 
-    // Reset dashboard
+
+    if (document.getElementById("ganttChart")) {
+        document.getElementById("ganttChart").innerHTML = "";
+    }
+
+    if (document.getElementById("ganttHeader")) {
+        document.getElementById("ganttHeader").innerHTML = "";
+    }
+
+
     document.getElementById("employeeCount").innerText = 0;
     document.getElementById("taskCount").innerText = 0;
     document.getElementById("departmentCount").innerText = 0;
     document.getElementById("delayCount").innerText = 0;
 
-    // Reset dropdown
+  
     document.getElementById("departmentFilter").innerHTML =
         `<option value="all">All Departments</option>`;
+
+
+    document.getElementById("excelFile").value = "";
+    document.getElementById("ganttChart").innerHTML = "";
+
+    document.getElementById("ganttHeader").innerHTML = "";
+    alert("All data cleared successfully.");
+}
+function generateTimeline(start, end) {
+    let dates = [];
+    let current = new Date(start);
+    let last = new Date(end);
+
+    while (current <= last) {
+        dates.push(new Date(current));
+        current.setDate(current.getDate() + 1);
+    }
+
+    return dates;
+}
+function renderGanttHeader(minDate, maxDate) {
+    const header = document.getElementById("ganttHeader");
+    header.innerHTML = "";
+
+    let current = new Date(minDate);
+
+    while (current <= maxDate) {
+
+        let cell = document.createElement("div");
+        cell.className = "gantt-date";
+
+        cell.innerText = current.toLocaleDateString("en-GB", {
+            day: "2-digit",
+            month: "short"
+        });
+
+        header.appendChild(cell);
+
+        current.setDate(current.getDate() + 1);
+    }
+}
+function renderGantt(data) {
+    const container = document.getElementById("ganttChart");
+    container.innerHTML = "";
+
+    if (!data.length) return;
+
+    let minDate = new Date(Math.min(...data.map(d =>
+        new Date(formatExcelDate(d["Start Date"]))
+    )));
+
+    let maxDate = new Date(Math.max(...data.map(d =>
+        new Date(formatExcelDate(d["End Date"]))
+    )));
+
+    let totalDays = (maxDate - minDate) / (1000 * 60 * 60 * 24);
+
+    renderGanttHeader(minDate, maxDate);
+
+    data.forEach(item => {
+
+        let start = new Date(formatExcelDate(item["Start Date"]));
+        let end = new Date(formatExcelDate(item["End Date"]));
+
+        let startOffset = (start - minDate) / (1000 * 60 * 60 * 24);
+        let duration = (end - start) / (1000 * 60 * 60 * 24);
+
+        let progress = item.Progress || 0;
+
+        let bar = document.createElement("div");
+        bar.className = "gantt-row";
+
+        bar.innerHTML = `
+            <div class="gantt-label">
+                <b>${item.Employee}</b> - ${item.Task}
+            </div>
+
+            <div class="gantt-track">
+                <div class="gantt-bar"
+                    style="
+                        left:${(startOffset / totalDays) * 100}%;
+                        width:${(duration / totalDays) * 100}%;
+                        background:#3b82f6;
+                    ">
+                    
+                    <div class="gantt-progress"
+                        style="width:${progress}%; background:#22c55e;">
+                    </div>
+
+                </div>
+            </div>
+        `;
+
+        container.appendChild(bar);
+    });
+}
+function refreshUI(data) {
+
+    renderTable(data);
+
+    renderGantt(data);
+
+    updateDashboard(data);
+
+    populateDepartments(data);
 }
